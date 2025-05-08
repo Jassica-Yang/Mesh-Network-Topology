@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Mesh Network Topology - Adjusted Layout</title>
+    <script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <style>
+        #network {
+            width: 100%;
+            height: 400px;
+            /* 固定高度 */
+            overflow: auto;
+            /* ✅ 加捲軸 */
+            border: 1px solid lightgray;
+        }
+
+        #node-info {
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Mesh Network Topology - Improved Label Position & Edge Layout</h2>
+    <div id="network"></div>
+    <div id="node-info"></div>
+    <script>
+        const rawData = {
+            "re_paired_list": [{
+                "mac": "AA:BB:CC:DD:EE:02",
+                "serial": "123456789",
+                "name": "RE_1"
+            }, {
+                "mac": "AA:BB:CC:DD:EE:03",
+                "serial": "987654321",
+                "name": "RE_2"
+            }, {
+                "mac": "AA:BB:CC:DD:EE:04",
+                "serial": "111122333",
+                "name": "RE_3"
+            }, {
+                "mac": "AA:BB:CC:DD:EE:05",
+                "serial": "111223333",
+                "name": "RE_4"
+            }, {
+                "mac": "AA:BB:CC:DD:EE:06",
+                "serial": "111223334",
+                "name": "RE_5"
+            }],
+            "re_list": [{
+                "mac": "AA:BB:CC:DD:EE:02",
+                "ip": "192.168.1.2",
+                "sync": 1,
+                "signal": -50,
+                "ap": [{
+                    "ifname": "wl0",
+                    "mac": "11:22:33:44:55:66"
+                }]
+            }, {
+                "mac": "AA:BB:CC:DD:EE:03",
+                "ip": "192.168.1.3",
+                "sync": 1,
+                "signal": -60,
+                "ap": [{
+                    "ifname": "wl0",
+                    "mac": "AA:BB:CC:DD:EE:02"
+                }]
+            }, {
+                "mac": "AA:BB:CC:DD:EE:04",
+                "ip": "192.168.1.4",
+                "sync": 1,
+                "signal": -65,
+                "ap": [{
+                    "ifname": "wl0",
+                    "mac": "AA:BB:CC:DD:EE:03"
+                }]
+            }, {
+                "mac": "AA:BB:CC:DD:EE:05",
+                "ip": "192.168.1.5",
+                "sync": 0,
+                "signal": -70,
+                "ap": [{
+                    "ifname": "wl0",
+                    "mac": "AA:BB:CC:DD:EE:03"
+                }]
+            }, {
+                "mac": "AA:BB:CC:DD:EE:06",
+                "ip": "192.168.1.6",
+                "sync": 1,
+                "signal": -75,
+                "ap": [{
+                    "ifname": "wl0",
+                    "mac": "AA:BB:CC:DD:EE:04"
+                }]
+            }]
+        };
+        const macToOnlineInfo = {};
+        rawData.re_list.forEach(re => macToOnlineInfo[re.mac] = re);
+        const knownMacs = new Set();
+        rawData.re_paired_list.forEach(re => knownMacs.add(re.mac));
+        rawData.re_list.forEach(re => knownMacs.add(re.mac));
+        rawData.re_list.forEach(re => re.ap?.forEach(ap => knownMacs.add(ap.mac)));
+        const nodes = new vis.DataSet();
+        knownMacs.forEach(mac => {
+            const paired = rawData.re_paired_list.find(p => p.mac === mac);
+            const online = macToOnlineInfo[mac];
+            const customData = {
+                mac,
+                name: paired?.name || "Unknown",
+                serial: paired?.serial || "--",
+                ip: online?.ip || "N/A",
+                signal: online?.signal ?? "N/A",
+                sync: online ? (online.sync === 1 ? "Synced" : "Syncing") : "Offline"
+            };
+
+            // ✅ 這裡用新的 nodes.add
+            nodes.add({
+                id: mac,
+                shape: "circularImage", // ✅ 改成能顯示圖片的模式
+                image: "https://img.icons8.com/color/48/wifi-router.png", // ✅ 圖片來源
+                label: `${customData.name}`,
+                font: {
+                    size: 8,
+                    color: "#000000",
+                    vadjust: -18 // ✅ 把文字往下推，不會擋到圖示
+                },
+                imagePadding: 10,
+                color: {
+                    background: "#ffffff",
+                    border: "#ffffff",
+                    highlight: {
+                        background: "#ffffff",
+                        border: "#000000"
+                    }
+                },
+                customData
+            });
+
+        });
+
+        const edges = new vis.DataSet();
+        rawData.re_list.forEach(re => {
+            re.ap?.forEach(ap => {
+                if (knownMacs.has(ap.mac)) {
+                    edges.add({
+                        from: ap.mac,
+                        to: re.mac,
+                        //label: `${re.signal} dBm`,
+                        arrows: {
+                            to: {
+                                enabled: true,
+                                scaleFactor: 0.5 // ✅ 控制箭頭大小，預設是 1
+                            }
+                        },
+
+
+                        font: {
+                            align: "middle"
+                        },
+                        smooth: false
+                    });
+                }
+            });
+        });
+        const container = document.getElementById("network");
+        const data = {
+            nodes,
+            edges
+        };
+        const options = {
+            layout: {
+                hierarchical: {
+                    direction: "UD",
+                    sortMethod: "directed",
+                    levelSeparation: 80
+                }
+            },
+            physics: false,
+            interaction: {
+                dragNodes: false,
+                dragView: false,
+                zoomView: false,
+                selectConnectedEdges: true, // ✅ 讓點節點時相關線段突顯
+                hover: false
+            },
+            nodes: {
+                shape: "image",
+                imagePadding: 20,
+                margin: 10,
+                font: {
+                    align: "left"
+                },
+                color: {
+                    background: "#ffffff",
+                    border: "#ffffff",
+                    highlight: {
+                        background: "#ffffff", // 點擊節點時不變色
+                        border: "#ffffff"
+                    }
+                },
+                borderWidth: 1,
+                borderWidthSelected: 0 // ✅ 關閉選取邊框（最關鍵）
+            },
+            edges: {
+                arrows: "to",
+                font: {
+                    size: 10,
+                    align: "middle"
+                },
+                smooth: false,
+                color: {
+                    color: "#888888",
+                    highlight: "#888888", // ✅ 點選相關線段變黑
+                    inherit: "from"
+                },
+                selectionWidth: 1 // ✅ 點選時線條變粗
+            }
+        };
+
+        const network = new vis.Network(container, data, options);
+        network.on("click", function(params) {
+            if (params.nodes.length === 1) {
+                const node = nodes.get(params.nodes[0]);
+                const d = node.customData;
+                document.getElementById("node-info").innerHTML = ` <h3>Node Info</h3> <table border="1" cellpadding="5"> <tr><td><b>Name</b></td><td>${d.name}</td></tr> <tr><td><b>MAC</b></td><td>${d.mac}</td></tr> <tr><td><b>IP</b></td><td>${d.ip}</td></tr> <tr><td><b>Signal</b></td><td>${d.signal}</td></tr> <tr><td><b>Status</b></td><td>${d.sync}</td></tr> <tr><td><b>Serial</b></td><td>${d.serial}</td></tr> </table> `;
+                document.getElementById("node-info").style.display = "block";
+            }
+        });
+
+    </script>
+</body>
+
+</html>

@@ -5,16 +5,65 @@
   <title>Real-Time Uplink/Downlink Speed Graph</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 2em; }
-    canvas { max-width: 800px; }
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      aspect-ratio: 2 / 1; /* 640:320 比例 */
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* === ▼ Button 樣式區塊 ▼ === */
+    .controls {
+      text-align: center;
+    }
+
+    .controls button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      font-size: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 6px;
+    }
+
+    #auto-btn.auto-active {
+      color: red;
+    }
+
+    #refresh-btn:active {
+      color: green;
+    }
+    /* === ▲ Button 樣式區塊 ▲ === */
   </style>
 </head>
 <body>
   <h2>Real-Time Uplink / Downlink Speed Graph</h2>
   <p style="font-size: 0.9em; color: gray;">
-    Demo version: Simulated uplink/downlink speed, updates every 2 sec.
+    Demo version: Simulated uplink/downlink speed, updates every 3 sec when Auto is on.
   </p>
-  <canvas id="speedChart" width="800" height="400"></canvas>
+  <div class="chart-container">
+    <canvas id="speedChart"></canvas>
+  </div>
+  <div class="controls">
+    <button id="auto-btn">Auto</button>
+    <button id="refresh-btn">Refresh</button>
+  </div>
 
   <script>
     const ctx = document.getElementById('speedChart').getContext('2d');
@@ -65,14 +114,36 @@
       }
 
       labels.push(now);
-      uplinkData.push((Math.random() * 3).toFixed(2));    // 模擬 uplink 速度 0~3 Mbps
-      downlinkData.push((Math.random() * 30 + 5).toFixed(2)); // 模擬 downlink 速度 5~35 Mbps
+      uplinkData.push((Math.random() * 3).toFixed(2));          // uplink 0~3 Mbps
+      downlinkData.push((Math.random() * 30 + 5).toFixed(2));   // downlink 5~35 Mbps
 
       chart.update();
     }
 
-    // 每 3 秒更新一次
-    setInterval(simulateSpeed, 3000);
+    // === ▼ Button 功能區 ▼ ===
+    let autoTimer = null;
+
+    const autoBtn = document.getElementById('auto-btn');
+    const refreshBtn = document.getElementById('refresh-btn');
+
+    autoBtn.onclick = () => {
+      // 啟動 Auto：開始每 3 秒自動更新，並把 Auto 字變紅
+      if (!autoBtn.classList.contains('auto-active')) {
+      simulateSpeed(); // 執行一次更新
+        autoBtn.classList.add('auto-active');
+        autoTimer = setInterval(simulateSpeed, 3000);
+      }
+    };
+
+    refreshBtn.onclick = () => {
+      // 停止 Auto、恢復 Auto 字色、立即更新一次
+      clearInterval(autoTimer);
+      autoTimer = null;
+      autoBtn.classList.remove('auto-active');
+
+      simulateSpeed(); // 執行一次更新
+    };
+    // === ▲ Button 功能區 ▲ ===
   </script>
 </body>
 </html>

@@ -50,6 +50,19 @@
       color: white;
       text-align: left;
     }
+  .custom-tooltip {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #aaa;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    display: none;
+    z-index: 10;
+    pointer-events: none; /* 讓點擊不會卡在這 */
+  }
+  
   </style>
 </head>
 
@@ -57,6 +70,7 @@
   <h2>Mesh Network Topology</h2>
   <div id="network"></div>
   <div id="node-info"></div>
+    <div id="custom-tooltip" class="custom-tooltip"></div>
   <script>
     const wifi_re_paired_list = [
       { "mac": "80:02:9C:63:90:B2", "name": "mesh-6390B2", "serial": "No.10Gemtek_181" },
@@ -179,7 +193,7 @@
       nodes.add({
         id: mac,
         shape: "circularImage",
-        image: "image/icons-wifi-router.png",
+        image: "images/icons-wifi-router.png",
         label: `${customData.name}`,
         font: {
           size: 8,
@@ -268,31 +282,65 @@
         smooth: false,
         color: {
           color: "#888888",
-          highlight: "#888888",
+          highlight: "#3f84fc",
           inherit: "from"
         },
         selectionWidth: 1
       }
     };
 
+	function getStatusSvgFile(syncStatus) {
+	  switch (syncStatus) {
+		case "Synced":
+		  return "images/green-led.svg";
+		case "Syncing":
+		  return "images/yellow-led.svg";
+		default:
+		  return "images/gray-led.svg"; // offline 或未知
+	  }
+	}
+
     const network = new vis.Network(container, data, options);
-    network.on("click", function (params) {
-      if (params.nodes.length === 1) {
-        const node = nodes.get(params.nodes[0]);
-        const d = node.customData;
-        document.getElementById("node-info").innerHTML = `
-          <h3>Node Info</h3>
-          <table>
-            <tr><th>Name</th><td>${d.name}</td></tr>
-            <tr><th>MAC</th><td>${d.mac}</td></tr>
-            <tr><th>IP</th><td>${d.ip}</td></tr>
-            <tr><th>Signal</th><td>${d.signal}</td></tr>
-            <tr><th>Status</th><td>${d.sync}</td></tr>
-            <tr><th>Serial</th><td>${d.serial}</td></tr>
-          </table>`;
-        document.getElementById("node-info").style.display = "block";
-      }
-    });
+    const tooltip = document.getElementById("custom-tooltip");
+
+	network.on("click", function (params) {
+	  if (params.nodes.length === 1) {
+		const nodeId = params.nodes[0];
+		const node = nodes.get(nodeId);
+		const d = node.customData;
+
+		// 計算座標位置
+		const pos = network.getPositions([nodeId])[nodeId];
+		const canvasPos = network.canvasToDOM(pos);
+
+		// 取得狀態圖示 SVG 路徑
+		const svgFile = getStatusSvgFile(d.sync);
+
+		// 設定浮窗內容
+		tooltip.innerHTML = `
+		  <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+			<img src="${svgFile}" width="14" height="14" alt="status icon">
+			<span style="font-weight: bold;">${d.sync}</span>
+		  </div>
+		  <div style="font-weight: bold; font-size: 16px; margin-bottom: 6px;">${d.name}</div>
+		  <div style="font-family: monospace; font-size: 13px; line-height: 1.4;">
+			MAC:     ${d.mac}<br>
+			IP:      ${d.ip}<br>
+			Signal:  ${d.signal}<br>
+			Serial:  ${d.serial}
+		  </div>
+		`;
+
+
+		tooltip.style.left = (canvasPos.x + 25) + "px";
+		tooltip.style.top = (canvasPos.y + 10) + "px";
+		tooltip.style.display = "block";
+	  } else {
+		tooltip.style.display = "none";
+	  }
+	});
+
+
   </script>
 </body>
 
